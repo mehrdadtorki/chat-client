@@ -1,37 +1,55 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import Link from "next/link";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardHeader,
-  CardFooter,
   CardContent,
+  CardFooter,
+  CardHeader,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ErrorMessage, Field, Form, Formik } from "formik";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import * as Yup from "yup";
+
+// Define the type for the form values
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
-    if (res?.ok) {
-      router.push("/dashboard");
-    } else {
-      alert("Login failed. Check your credentials.");
+  const handleLogin = async (values: LoginFormValues) => {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+        // Redirect to dashboard after successful login
+        router.push("/dashboard");
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("An error occurred during login. Please try again.");
     }
   };
+
+  const validationSchema = Yup.object().shape({
+    email: Yup.string().email("Invalid email").required("Email is required"),
+    password: Yup.string().required("Password is required"),
+  });
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-50 via-blue-200 to-blue-100 p-4">
@@ -40,40 +58,57 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
           <p className="text-gray-500">Log in to access your dashboard</p>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent>
-            <div className="mb-4">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="mb-6">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full">
-              Log in
-            </Button>
-            <p className="text-center text-gray-500">
-              Dont have an account? <Link href="/auth/signup">Sign up</Link>
-            </p>
-          </CardFooter>
-        </form>
+        <Formik<LoginFormValues>
+          initialValues={{ email: "", password: "" }}
+          validationSchema={validationSchema}
+          onSubmit={handleLogin}
+        >
+          <Form>
+            <CardContent>
+              <div className="mb-4">
+                <Label htmlFor="email">Email</Label>
+                <Field
+                  as={Input}
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
+                />
+                <ErrorMessage
+                  name="email"
+                  component="div"
+                  className="text-red-500 text-sm"
+                />
+              </div>
+              <div className="mb-6">
+                <Label htmlFor="password">Password</Label>
+                <Field
+                  as={Input}
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                />
+                <ErrorMessage
+                  name="password"
+                  component="div"
+                  className="text-red-500 text-sm"
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4">
+              <Button type="submit" className="w-full">
+                Log in
+              </Button>
+              <p className="text-center text-gray-500">
+                Don&apos;t have an account?{" "}
+                <Link href="/auth/signup">Sign up</Link>
+              </p>
+            </CardFooter>
+          </Form>
+        </Formik>
       </Card>
     </div>
   );
